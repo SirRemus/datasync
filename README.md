@@ -19,7 +19,7 @@ A simple data synchronization application with a GUI built using Python and Tkin
     python3 datasync.py
     ```
 
-The application will start and display the main window. You can then click the "Sync" button to start the synchronization process.
+    The application will start and display the main window. You can then click the "Sync" button to start the synchronization process.
 
 ## Features
 
@@ -34,4 +34,4 @@ The application will start and display the main window. You can then click the "
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE).
+    This project is licensed under the [MIT License](LICENSE).
