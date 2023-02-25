@@ -1,6 +1,7 @@
 # Data Sync
 
-A GUI application for data synchronization between a local machine and a remote machine using `rsync` and `Tkinter`.
+A simple data synchronization application with a GUI built using Python and Tkinter.
+
 
 ## Requirements
 
@@ -11,22 +12,25 @@ A GUI application for data synchronization between a local machine and a remote 
 ## Usage
 
 1. Clone or download the repository.
-2. Make sure the `rsync` command is installed on your machine.
-3. Edit the `dataSync.ini` file to specify the source directory, destination directory, and ssh key.
-4. Run the `datasync.py` script:
+2. Configure the datasync.ini file with your source and destination directories, SSH key.
+3. Run the script using the following command:
 
     ```bash
     python3 datasync.py
     ```
 
-5. The GUI will appear. Use the checkbox to turn on verbose mode if desired.
-6. Click the "Sync" button to start the synchronization.
-7. The status of the sync will be displayed in the text box and the progress bar will show the progress.
-8. The log file `dataSync.log` will be updated with any errors.
+The application will start and display the main window. You can then click the "Sync" button to start the synchronization process.
 
-## Contributing
+## Features
 
-If you find any bugs or have any suggestions for improvements, please open an issue or create a pull request.
+- source_dir: The local source directory for the data synchronization.
+- destination_dir: The remote destination directory for the data synchronization.
+- ssh_key: The path to the SSH key for accessing the remote machine.
+
+## Limitations
+
+-  The application assumes that rsync is installed and available in the PATH.
+-  The script does not handle authentication for the remote machine, it assumes that the SSH key is properly set up and can be used to access the remote machine without a password.
 
 ## License
 
