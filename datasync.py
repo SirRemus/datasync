@@ -19,11 +19,34 @@ class DataSyncApp:
         master.geometry("800x645")
         master.configure(background="gray")
 
+        # Initialize the number of files to sync and synced
+        self.num_files_to_sync = 0
+        self.num_files_synced = 0
+
+        # Initialize the progress bar to None
+        self.progress_bar = None
+
+        # Read the config file
+        try:
+            self.config = configparser.ConfigParser()
+            self.config.read("dataSync.ini")
+        except Exception as e:
+            self.show_error_message(f"Error reading config file: {e}")
+            return
+
+        # Initialize the logger
+        self.logger = logging.getLogger("DataSync")
+        self.logger.setLevel(logging.INFO)
+        handler = logging.FileHandler("dataSync.log")
+        formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+        handler.setFormatter(formatter)
+        self.logger.addHandler(handler)
+
         # Add a label to the main window
-        self.label = tk.Label(
+        self.status_label = tk.Label(
             master, text="Sync data from local to remote machine", background="gray"
         )
-        self.label.pack()
+        self.status_label.pack()
 
         # Add a frame to the main window
         self.frame = tk.Frame(master)
@@ -63,28 +86,13 @@ class DataSyncApp:
 
         # Add a quit button to the main window
         self.quit_button = tk.Button(
-            master, text="Quit", command=master.quit, background="red", foreground="white"
+            master, text="Quit", command=self.master.quit, background="red", foreground="white"
         )
         self.quit_button.pack(pady=10)
 
-        # Initialize the progress bar to None
-        self.progress_bar = None
-
-        # Initialize the number of files to sync and synced
-        self.num_files_to_sync = 0
-        self.num_files_synced = 0
-
-        # Read the config file
-        self.config = configparser.ConfigParser()
-        self.config.read("dataSync.ini")
-
-        # Initialize the logger
-        self.logger = logging.getLogger("DataSync")
-        self.logger.setLevel(logging.ERROR)
-        handler = logging.FileHandler("dataSync.log")
-        formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-        handler.setFormatter(formatter)
-        self.logger.addHandler(handler)
+    def show_error_message(self, message):
+        self.output_box.insert(tk.END, f"Error: {message}\n")
+        self.logger.error(f"Error: {message}")
 
     # Method to clear the text in the output box
     def clear_text(self):
@@ -114,56 +122,60 @@ class DataSyncApp:
     def sync_data(self, source_dir, destination_dir, ssh_key, verbose):
         # Check if the source directory exists
         if not os.path.isdir(source_dir):
-            self.update_status(f"Error: source directory {source_dir} does not exist.")
+            self.show_error_message(f"Source directory {source_dir} does not exist.")
             return
 
         # Check if the ssh key file exists
         if not os.path.isfile(ssh_key):
-            self.update_status(f"Error: ssh key file {ssh_key} does not exist.")
+            self.show_error_message(f"SSH key file {ssh_key} does not exist.")
             return
 
         # Generate the rsync options
         rsync_options = self.get_rsync_options(source_dir, destination_dir, ssh_key, verbose)
 
         # Count the number of files to sync
-        process = subprocess.Popen(rsync_options + ["--dry-run"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        self.num_files_to_sync = len(process.stdout.readlines())
-        process.wait()
+        try:
+            process = subprocess.run(rsync_options + ["--dry-run"],
+                                     check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            self.num_files_to_sync = len(process.stdout.splitlines())
+        except subprocess.CalledProcessError as e:
+            self.show_error_message(f"Error counting the number of files to sync: {e}")
+            self.logger.error(f"Error counting the number of files to sync: {e}")
+            return
+
         self.num_files_synced = 0
 
         # Create the progress bar if there are files to sync
-        self.progress_bar = tk.ttk.Progressbar(
-            self.master, orient="horizontal", length=200, mode="determinate"
-        )
-        self.progress_bar.pack()
-        self.progress_bar["maximum"] = self.num_files_to_sync
-        self.progress_bar["value"] = 0
+        if self.num_files_to_sync > 0:
+            self.progress_bar = tk.ttk.Progressbar(
+                self.master, orient="horizontal", length=200, mode="determinate"
+            )
+            self.progress_bar.pack()
+            self.progress_bar["maximum"] = self.num_files_to_sync
+            self.progress_bar["value"] = 0
 
         # Run the rsync command to sync the data from local to remote
-
-        process = subprocess.Popen(rsync_options, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        for line in iter(process.stdout.readline, b''):
-            self.update_file_list(line.decode("utf-8").strip())
-        process.wait()
-
-        # Check if the sync from local to remote was successful
-        if process.returncode == 0:
-            self.update_status("Data synced successfully from local to remote.")
-        else:
-            error_message = str(process.stderr.read().decode("utf-8").strip())
-            self.update_status(f"Sync from local to remote failed: {error_message}")
+        try:
+            process = subprocess.run(rsync_options, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            for line in process.stdout.splitlines():
+                self.update_file_list(line.decode("utf-8").strip())
+        except subprocess.CalledProcessError as e:
+            error_message = e.stderr.decode("utf-8").strip()
+            self.show_error_message(f"Sync from local to remote failed: {error_message}")
             self.logger.error(f"Sync from local to remote failed: {error_message}")
+            return
+
+        self.update_status("Data synced successfully from local to remote.")
 
         # Swap the source and destination directories for the next sync
-        source_dir = self.config.get("DataSync", "destination_dir")
-        destination_dir = self.config.get("DataSync", "source_dir")
+        source_dir, destination_dir = destination_dir, source_dir
         rsync_options = self.get_rsync_options(source_dir, destination_dir, ssh_key, verbose)
 
-        # Create the progress bar if there are files to sync
+        # Reset the progress bar for the next sync
+        self.num_files_synced = 0
         if self.num_files_to_sync > 0:
             self.progress_bar["maximum"] = self.num_files_to_sync
             self.progress_bar["value"] = 0
-            self.num_files_synced = 0
 
         # Run the rsync command to sync the data from remote to local
         process = subprocess.Popen(rsync_options, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -176,7 +188,7 @@ class DataSyncApp:
             self.update_status("Data synced successfully from remote to local.")
         else:
             error_message = str(process.stderr.read().decode("utf-8").strip())
-            self.update_status(f"Sync from remote to local failed: {error_message}")
+            self.show_error_message(f"Sync from remote to local failed: {error_message}")
             self.logger.error(f"Sync from remote to local failed: {error_message}")
 
         # Destroy the progress bar
