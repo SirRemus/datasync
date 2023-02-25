@@ -19,7 +19,7 @@ A simple data synchronization application with a GUI built using Python and Tkin
     python3 datasync.py
     ```
 
-    The application will start and display the main window. You can then click the "Sync" button to start the synchronization process.
+The application will start and display the main window. You can then click the "Sync" button to start the synchronization process.
 
 ## Features
 
@@ -33,5 +33,4 @@ A simple data synchronization application with a GUI built using Python and Tkin
 -  The script does not handle authentication for the remote machine, it assumes that the SSH key is properly set up and can be used to access the remote machine without a password.
 
 ## License
-
-    This project is licensed under the [MIT License](LICENSE).
+This project is licensed under the [MIT License](LICENSE).
